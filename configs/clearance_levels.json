@@ -1,0 +1,11 @@
+{
+    "CoreAgent": {
+        "clearance_level": 3
+    },
+    "AuditorAgent": {
+        "clearance_level": 2
+    },
+    "EdgeAgent": {
+        "clearance_level": 1
+    }
+}
