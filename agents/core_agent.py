@@ -1,45 +1,39 @@
 # agents/core_agent.py
-
-from agents.agent_base import AgentBase
-from security.encryption_tools import encrypt_data, decrypt_data
-from security.permissions import get_clearance_level
-from agents.auditor_agent import AuditorAgent
+from agents.agent_base import AgentSecBaseAgent
+from autogen_core.base import MessageContext
+from security.encryption_tools import encrypt_data
 from security.blockchain import log_action
-from autogen import Agent, Message
+from security.authentication import authenticate_source
+from messages.messages import InstructionMessage
+from autogen_core.base import AgentId
 
-class CoreAgent(Agent):
-    def __init__(self, name='CoreAgent'):
-        super().__init__(name)
-        self.clearance_level = get_clearance_level(self.name)
-        self.auditor_agent = None  # Will be set during initialization
+class CoreAgent(AgentSecBaseAgent):
+    """Core Agent responsible for processing user commands."""
 
-    def set_auditor(self, auditor_agent):
-        self.auditor_agent = auditor_agent
+    def __init__(self):
+        super().__init__('core_agent')
 
-    def handle_message(self, message):
-        # Core Agent processes messages if needed
-        pass
+    async def on_message(self, message: InstructionMessage, ctx: MessageContext):
+        """Process incoming instruction messages."""
+        await self.process_command(message.content, message.token)
 
-    def process_command(self, command, user_token):
+    async def process_command(self, command: str, user_token: str):
         if not self.authenticate(user_token):
             print("Authentication failed.")
             return
-        if self.is_sensitive_command(command):
-            if not self.get_user_approval(command):
-                print("User did not approve the sensitive action.")
-                return
 
         # Encrypt command based on clearance level
-        encrypted_command = encrypt_data(command, self.clearance_level)
+        encrypted_command = encrypt_data(command, self.clearance_level, self.id)
 
         # Log the action
-        print('action logged')
-        #log_action(self.name, 'Issued command.')
+        log_action(self.id, 'Issued command.')
 
-        # Auditor verifies the action
-        msg = Message(
-            sender=self.name,
-            receiver=self.auditor_agent.name,
-            content=encrypted_command
+        # Send the encrypted command to the AuditorAgent
+        await self.send_message(
+            message=encrypted_command,
+            recipient=AgentId("auditor_agent", "default") 
         )
-        self.send_message(msg)
+
+    def authenticate(self, token: str) -> bool:
+        """Authenticate the user token."""
+        return authenticate_source(token)

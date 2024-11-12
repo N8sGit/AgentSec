@@ -1,43 +1,42 @@
 # agents/edge_agent.py
-
 from agents.agent_base import AgentSecBaseAgent
-from autogen import Message
+from autogen_core.base import MessageContext
 from security.encryption_tools import decrypt_data, encrypt_data
 from security.blockchain import log_action
-from security.permissions import get_clearance_level
 
 class EdgeAgent(AgentSecBaseAgent):
-    def __init__(self, name):
-        super().__init__(name)
-        self.clearance_level = get_clearance_level(self.name)
+    """Edge Agent responsible for executing tasks."""
 
-    def handle_message(self, message):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+
+    async def on_message(self, message, ctx: MessageContext):
+        """Handle incoming messages and execute tasks."""
         # Decrypt the command
-        command = decrypt_data(message.content, self.name)
+        command = decrypt_data(message, self.id)
         if command is None:
-            print(f"{self.name} does not have clearance to execute this command.")
+            print(f"{self.id} does not have clearance to execute this command.")
             return
 
         # Perform the task
-        self.perform_task(command)
+        await self.perform_task(command)
 
         # Log the action
-        log_action(self.name, f'Executed task: {command}')
+        log_action(self.id, f'Executed task: {command}')
 
-    def perform_task(self, command):
-        # Implement the specific action here
-        print(f"{self.name} performing task: {command}")
+    async def perform_task(self, command: str):
+        """Perform the specified task."""
+        print(f"{self.id} performing task: {command}")
 
         # After performing the task, send data back up
-        data = f"Result from {self.name} for command: {command}"
-        self.send_data_up(data)
+        data = f"Result from {self.id} for command: {command}"
+        await self.send_data_up(data)
 
-    def send_data_up(self, data):
-        # Data is sent upward without being considered as an instruction
-        encrypted_data = encrypt_data(data, self.clearance_level)
-        msg = Message(
-            sender=self.name,
-            receiver='AuditorAgent',  # Or CoreAgent directly
-            content=encrypted_data
+    async def send_data_up(self, data: str):
+        """Send data upward without it being considered as an instruction."""
+        encrypted_data = encrypt_data(data, self.clearance_level, self.id)
+        # Send data back to AuditorAgent
+        await self.send_message(
+            message=encrypted_data,
+            recipient='auditor_agent'
         )
-        self.send_message(msg)
