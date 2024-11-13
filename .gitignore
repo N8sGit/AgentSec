@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Ignore RSA key files
+private_key.pem
+public_key.pem
+
 # Distribution / packaging
 .Python
 build/
