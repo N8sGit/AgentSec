@@ -5,6 +5,10 @@ What's this about? [See the white paper](https://github.com/N8sGit/agent_sec_whi
 ## tl;dr
 I want to see if it's possible to build a multi-agent system like a top-secret organization, that implements multiple layers of security and prevents leaks and provides a framework for handling sensitive data.
 
+For example: certain information points could be labeled "classified", and encrypted, and only read by agents with appropriate clearance levels. 
+
+Another mechanism is a block-chain like "signature" mechanism where high priority instructions must be formally authorized by the approving agencies- this to ostensibly protect against prompt injection attacks... this signing system is external to the prompt.
+
 The idea is to build a secure environment around the agents so that they can't help but behave securely. We don't have to trust the agents or leave anything up to chance. 
 
 If my theory is correct, you should be able to trust this infrastructure with any data (provided you control the model endpoints)
