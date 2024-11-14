@@ -1,8 +1,8 @@
 # agents/edge_agent.py
 from agents.agent_base import AgentSecBaseAgent
-from autogen_core.base import MessageContext
-from security.encryption_tools import decrypt_data, encrypt_data
-from security.blockchain import log_action
+from autogen_core.base import MessageContext, AgentId
+from security.signature_tools import verify_signature
+from security.log_chain import log_action
 
 class EdgeAgent(AgentSecBaseAgent):
     """Edge Agent responsible for executing tasks."""
@@ -12,11 +12,14 @@ class EdgeAgent(AgentSecBaseAgent):
 
     async def on_message(self, message, ctx: MessageContext):
         """Handle incoming messages and execute tasks."""
-        # Decrypt the command
-        command = decrypt_data(message, self.id)
-        if command is None:
-            print(f"{self.id} does not have clearance to execute this command.")
+
+        # Verify the signature in the message
+        if not verify_signature(message):
+            print(f"Signature verification failed for command in {self.id}.")
             return
+
+        # Extract the command content from the verified message
+        command = message["message"]
 
         # Perform the task
         await self.perform_task(command)
@@ -28,15 +31,10 @@ class EdgeAgent(AgentSecBaseAgent):
         """Perform the specified task."""
         print(f"{self.id} performing task: {command}")
 
-        # After performing the task, send data back up
-        data = f"Result from {self.id} for command: {command}"
-        await self.send_data_up(data)
-
     async def send_data_up(self, data: str):
         """Send data upward without it being considered as an instruction."""
-        encrypted_data = encrypt_data(data, self.clearance_level, self.id)
-        # Send data back to AuditorAgent
+        # In this example, sending data up without encryption or classification handling
         await self.send_message(
-            message=encrypted_data,
-            recipient='auditor_agent'
+            message=data,
+            recipient=AgentId("auditor_agent", "default")
         )

@@ -1,11 +1,10 @@
 # agents/core_agent.py
 from agents.agent_base import AgentSecBaseAgent
-from autogen_core.base import MessageContext
-from security.encryption_tools import encrypt_data
-from security.blockchain import log_action
+from autogen_core.base import MessageContext, AgentId
+from security.signature_tools import sign_message
+from security.log_chain import log_action
 from security.authentication import authenticate_source
 from messages.messages import InstructionMessage
-from autogen_core.base import AgentId
 
 class CoreAgent(AgentSecBaseAgent):
     """Core Agent responsible for processing user commands."""
@@ -22,16 +21,16 @@ class CoreAgent(AgentSecBaseAgent):
             print("Authentication failed.")
             return
 
-        # Encrypt command based on clearance level
-        encrypted_command = encrypt_data(command, self.clearance_level, self.id)
+        # Sign the command
+        signed_command = sign_message(command)  # Includes message, timestamp, and signature
 
         # Log the action
         log_action(self.id, 'Issued command.')
 
-        # Send the encrypted command to the AuditorAgent
+        # Send the signed command to the AuditorAgent
         await self.send_message(
-            message=encrypted_command,
-            recipient=AgentId("auditor_agent", "default") 
+            message=signed_command,
+            recipient=AgentId("auditor_agent", "default")
         )
 
     def authenticate(self, token: str) -> bool:

@@ -1,9 +1,9 @@
 # agents/auditor_agent.py
 from agents.agent_base import AgentSecBaseAgent
-from autogen_core.base import MessageContext
-from security.encryption_tools import decrypt_data, encrypt_data
+from autogen_core.base import MessageContext, AgentId
+from security.signature_tools import verify_signature  # Import the signature verification function
 from security.permissions import get_clearance_level
-from security.blockchain import log_action
+from security.log_chain import log_action
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
@@ -13,30 +13,25 @@ class AuditorAgent(AgentSecBaseAgent):
 
     async def on_message(self, message, ctx: MessageContext):
         """Handle incoming messages from CoreAgent."""
-        # Decrypt the message from CoreAgent
-        decrypted_command = decrypt_data(message, self.id)
-        if decrypted_command is None:
-            print("AuditorAgent could not decrypt the command.")
+        
+        # Verify the signature in the message
+        if not verify_signature(message):
+            print("Signature verification failed. Discarding command.")
             return
+
+        # Extract the command content from the verified message
+        decrypted_command = message["message"]
 
         # Verify permissions
         if not self.has_permission(required_level=2):
             print("Unauthorized command from CoreAgent.")
             return
 
-        # Re-encrypt command for EdgeAgent
-        edge_clearance_level = get_clearance_level('edge_agent_one')
-        re_encrypted_command = encrypt_data(
-            decrypted_command,
-            edge_clearance_level,
-            'edge_agent_one'
-        )
-
         # Log the action
-        log_action(self.id, 'Relayed command to EdgeAgent.')
+        log_action(self.id, 'Verified and relayed command to EdgeAgent.')
 
-        # Send the command to EdgeAgent
+        # Send the command to EdgeAgent (no need to re-encrypt, assuming signature is sufficient)
         await self.send_message(
-            message=re_encrypted_command,
-            recipient='edge_agent_one'
+            message=decrypted_command,
+            recipient=AgentId("edge_agent_one", "default")
         )
