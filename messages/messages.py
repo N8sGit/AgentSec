@@ -6,7 +6,7 @@ class InstructionMessage:
     content: str
     source: str
     clearance_lvl: int
-    token: str  # Include the authentication token
+    token: str
 
 @dataclass
 class DataMessage:
