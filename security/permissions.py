@@ -6,7 +6,7 @@ def get_clearance_level(agent_id):
     config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', 'clearance_levels.json')
     config_path = os.path.abspath(config_path)  # Convert to an absolute path for clarity
     
-    print(f"Looking for clearance_levels.json at: {config_path}")  # Debug statement
+    print(f"Looking for clearance_levels.json at: {config_path}")
     
     try:
         with open(config_path, 'r') as f:
