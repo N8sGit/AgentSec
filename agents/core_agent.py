@@ -9,8 +9,9 @@ from messages.messages import InstructionMessage
 class CoreAgent(AgentSecBaseAgent):
     """Core Agent responsible for processing user commands."""
 
-    def __init__(self):
-        super().__init__('core_agent')
+    def __init__(self, name: str, agent_id: str):
+        super().__init__(agent_id=agent_id, name=name, description='Responsible for issuing commands, setting the agenda, and coordinating other agents.')
+        self.agent_id = agent_id
 
     async def on_message(self, message: InstructionMessage, ctx: MessageContext):
         """Process incoming instruction messages."""

@@ -7,31 +7,47 @@ from security.log_chain import log_action
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
-
-    def __init__(self):
-        super().__init__('auditor_agent')
+    def __init__(self, name: str, agent_id: str):
+        super().__init__(name=name, description="Ensures compliance, verifies signatures, and relays authorized commands.", agent_id=agent_id)
+        self.agent_id = agent_id 
 
     async def on_message(self, message, ctx: MessageContext):
         """Handle incoming messages from CoreAgent."""
         
+        # Log receipt of the message
+        log_action(self.id, f'Received message: {message}')
+
         # Verify the signature in the message
         if not verify_signature(message):
-            print("Signature verification failed. Discarding command.")
+            log_action(self.id, "Signature verification failed. Discarding command.")
+            print("Signature verification failed.")
             return
 
         # Extract the command content from the verified message
-        decrypted_command = message["message"]
-
-        # Verify permissions
-        if not self.has_permission(required_level=2):
-            print("Unauthorized command from CoreAgent.")
+        decrypted_command = message.get("message", None)
+        if not decrypted_command:
+            log_action(self.id, "Message content missing. Discarding command.")
+            print("Message content missing.")
             return
 
-        # Log the action
-        log_action(self.id, 'Verified and relayed command to EdgeAgent.')
+        # Verify permissions
+        clearance_level = get_clearance_level(ctx.source)
+        required_clearance = 2  # Example clearance level required
+        if clearance_level < required_clearance:
+            log_action(self.id, f"Unauthorized command from {ctx.source}. Clearance level {clearance_level} insufficient.")
+            print("Unauthorized command.")
+            return
 
-        # Send the command to EdgeAgent (no need to re-encrypt, assuming signature is sufficient)
+        # Log the successful verification
+        log_action(self.id, "Command verified successfully. Relaying to EdgeAgent.")
+
+        # Send the command to EdgeAgent (assume signature verification suffices)
         await self.send_message(
             message=decrypted_command,
             recipient=AgentId("edge_agent_one", "default")
         )
+        log_action(self.id, "Command relayed to EdgeAgent.")
+
+    def has_permission(self, clearance_level: int, required_level: int) -> bool:
+        """Check if the agent has the required permissions."""
+        return clearance_level >= required_level
