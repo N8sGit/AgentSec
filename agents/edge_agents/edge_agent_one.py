@@ -3,51 +3,61 @@ from agents.agent_base import AgentSecBaseAgent
 from autogen_core.base import MessageContext, AgentId
 from security.signature_tools import verify_signature
 from security.log_chain import log_action
+import time
 
 class EdgeAgent(AgentSecBaseAgent):
     """Edge Agent responsible for executing tasks and reporting results."""
-    
-    def __init__(self, name: str, agent_id: str):
-        super().__init__(name=name, description="Executes tasks and reports results", agent_id=agent_id)
-        self.agent_id = agent_id  # Retain agent_id for potential future use
+
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id=agent_id, description="Executes tasks and reports results")
+        self.agent_id = agent_id
 
     async def on_message(self, message, ctx: MessageContext):
-        """Handle incoming messages and execute tasks."""
-        
-        # Log receipt of the message
-        log_action(self.id, f"Received message: {message}")
+        """Handle incoming structured messages."""
+        # Check if the message is in the expected structure
+        if not isinstance(message, dict):
+            log_action(self.id, "Invalid message format received. Expected a dictionary.")
+            print(f"{self.id}: Invalid message format received.")
+            return
 
-        # Verify the signature in the message
+        # Verify the signature
         if not verify_signature(message):
-            log_action(self.id, f"Signature verification failed for message: {message}")
-            print(f"Signature verification failed for {self.id}.")
+            log_action(self.id, "Signature verification failed.")
+            print(f"{self.id}: Signature verification failed.")
             return
 
-        # Extract the command content from the verified message
-        command = message.get("message", None)
-        if not command:
-            log_action(self.id, "Message content missing. Unable to process.")
-            print(f"Message content missing in {self.id}.")
-            return
+        # Log and execute the task
+        log_action(self.id, f"Received verified message: {message['message']}")
+        print(f"{self.id}: Received verified message: {message['message']}")
 
         # Perform the task
-        await self.perform_task(command)
+        await self.perform_task(message)
 
-        # Log the execution
-        log_action(self.id, f"Executed task: {command}")
-
-    async def perform_task(self, command: str):
+    async def perform_task(self, message: dict):
         """Perform the specified task."""
-        # Task-specific logic here
-        print(f"{self.id} performing task: {command}")
+        command = message["message"]
+        print(f"{self.agent_id} performing task: {command}")
 
-    async def send_data_up(self, data: str):
+        # Log task execution
+        log_action(self.agent_id, f"Task executed: {command}")
+
+        # Create structured result data
+        result = {
+            "message": f"Result of task '{command}' completed by {self.agent_id}",
+            "timestamp": int(time.time()),
+            "sender": self.agent_id,
+        }
+
+        # Send result back to the Auditor Agent
+        await self.send_data_up(result)
+
+    async def send_data_up(self, data: dict):
         """Send data upward to the AuditorAgent."""
-        # Log the outgoing data
-        log_action(self.id, f"Sending data to AuditorAgent: {data}")
-        
-        # Send the data upward
+        log_action(self.id, f"Sending data to AuditorAgent: {data['message']}")
+
+        # Send the structured data
+        recipient_id = AgentId(type="auditor_agent", key="default")
         await self.send_message(
             message=data,
-            recipient=AgentId("auditor_agent", "default")
+            recipient=recipient_id
         )
