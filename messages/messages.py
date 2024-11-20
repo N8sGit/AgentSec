@@ -4,11 +4,12 @@ from dataclasses import dataclass
 @dataclass
 class InstructionMessage:
     content: str
-    source: str
+    sender: str
     clearance_lvl: int
     token: str
 
 @dataclass
 class DataMessage:
     content: str
-    source: str
+    timestamp: int
+    sender: str
