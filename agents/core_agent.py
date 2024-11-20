@@ -9,21 +9,25 @@ from messages.messages import InstructionMessage
 class CoreAgent(AgentSecBaseAgent):
     """Core Agent responsible for processing user commands."""
 
-    def __init__(self, name: str, agent_id: str):
-        super().__init__(agent_id=agent_id, name=name, description='Responsible for issuing commands, setting the agenda, and coordinating other agents.')
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id=agent_id, description='Responsible for issuing commands, setting the agenda, and coordinating other agents.')
         self.agent_id = agent_id
 
     async def on_message(self, message: InstructionMessage, ctx: MessageContext):
         """Process incoming instruction messages."""
-        await self.process_command(message.content, message.token)
+        await self.process_command(message.content, message.token, message.clearance_lvl)
 
-    async def process_command(self, command: str, user_token: str):
+    async def process_command(self, command: str, user_token: str, clearance_lvl: int):
         if not self.authenticate(user_token):
             print("Authentication failed.")
             return
 
         # Sign the command
-        signed_command = sign_message(command)  # Includes message, timestamp, and signature
+        signed_command = sign_message(command)
+        
+        # Add necessary metadata
+        signed_command["clearance_lvl"] = clearance_lvl
+        signed_command["sender"] = self.agent_id
 
         # Log the action
         log_action(self.id, 'Issued command.')
