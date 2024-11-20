@@ -31,7 +31,6 @@ async def main():
         runtime,
         "core_agent",
         lambda: CoreAgent(
-            name="Core Agent",
             agent_id=core_agent_id
         )
     )
@@ -40,7 +39,6 @@ async def main():
         runtime,
         "auditor_agent",
         lambda: AuditorAgent(
-            name="Auditor Agent",
             agent_id=auditor_agent_id
         )
     )
@@ -49,7 +47,6 @@ async def main():
         runtime,
         "edge_agent_one",
         lambda: EdgeAgent(
-            name="Edge Agent One",
             agent_id=edge_agent_one_id
         )
     )
@@ -60,11 +57,22 @@ async def main():
     # Use asynchronous input to prevent blocking the event loop
     user_command = await asyncio.to_thread(input, "Enter your command: ")
 
+    # Prompt the user to specify the clearance level for the message
+    while True:
+        try:
+            designated_clearance_level = int(await asyncio.to_thread(input, "Enter the clearance level for this command (1-3): "))
+            if 1 <= designated_clearance_level <= clearance_level:
+                break
+            else:
+                print(f"Invalid clearance level. Please specify a level between 1 and your maximum clearance ({clearance_level}).")
+        except ValueError:
+            print("Please enter a valid number.")
+
     # Wrap the user command in the appropriate message type, including the token and clearance level
     message = InstructionMessage(
         content=user_command,
-        source=user_id,
-        clearance_lvl=clearance_level,
+        sender=user_id,
+        clearance_lvl=designated_clearance_level,
         token=user_token
     )
 
