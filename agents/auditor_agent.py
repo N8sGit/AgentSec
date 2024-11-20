@@ -1,53 +1,52 @@
-# agents/auditor_agent.py
+import logging
 from agents.agent_base import AgentSecBaseAgent
 from autogen_core.base import MessageContext, AgentId
-from security.signature_tools import verify_signature  # Import the signature verification function
-from security.permissions import get_clearance_level
+from security.signature_tools import verify_signature
 from security.log_chain import log_action
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
-    def __init__(self, name: str, agent_id: str):
-        super().__init__(name=name, description="Ensures compliance, verifies signatures, and relays authorized commands.", agent_id=agent_id)
-        self.agent_id = agent_id 
+
+    def __init__(self):
+        super().__init__('auditor_agent')
 
     async def on_message(self, message, ctx: MessageContext):
-        """Handle incoming messages from CoreAgent."""
-        
-        # Log receipt of the message
-        log_action(self.id, f'Received message: {message}')
+        """Handle incoming structured messages."""
+        # Log raw input
+        log_action(self.id, f"Raw message received: {message}")
+        print(f"{self.id}: Raw message received: {message}")
+        print(f"{self.id}: Context received: {ctx}")
 
-        # Verify the signature in the message
+        # Check if the message is a dictionary
+        if not isinstance(message, dict):
+            log_action(self.id, f"Invalid message type: {type(message)}. Expected dictionary.")
+            print(f"{self.id}: Invalid message type: {type(message)}. Expected dictionary.")
+            return
+
+        # Log message keys
+        log_action(self.id, f"Message keys: {list(message.keys())}")
+        print(f"{self.id}: Message keys: {list(message.keys())}")
+
+        # Validate required keys
+        required_keys = {"message", "timestamp", "signature", "clearance_lvl", "sender"}
+        missing_keys = required_keys - message.keys()
+        if missing_keys:
+            log_action(self.id, f"Missing keys: {missing_keys}")
+            print(f"{self.id}: Missing keys: {missing_keys}")
+            return
+
+        # Verify the signature
         if not verify_signature(message):
-            log_action(self.id, "Signature verification failed. Discarding command.")
-            print("Signature verification failed.")
+            log_action(self.id, "Signature verification failed.")
+            print(f"{self.id}: Signature verification failed.")
             return
 
-        # Extract the command content from the verified message
-        decrypted_command = message.get("message", None)
-        if not decrypted_command:
-            log_action(self.id, "Message content missing. Discarding command.")
-            print("Message content missing.")
-            return
+        # Log successful validation
+        log_action(self.id, f"Message verified: {message}")
+        print(f"{self.id}: Message verified: {message}")
 
-        # Verify permissions
-        clearance_level = get_clearance_level(ctx.source)
-        required_clearance = 2  # Example clearance level required
-        if clearance_level < required_clearance:
-            log_action(self.id, f"Unauthorized command from {ctx.source}. Clearance level {clearance_level} insufficient.")
-            print("Unauthorized command.")
-            return
-
-        # Log the successful verification
-        log_action(self.id, "Command verified successfully. Relaying to EdgeAgent.")
-
-        # Send the command to EdgeAgent (assume signature verification suffices)
-        await self.send_message(
-            message=decrypted_command,
-            recipient=AgentId("edge_agent_one", "default")
-        )
-        log_action(self.id, "Command relayed to EdgeAgent.")
-
-    def has_permission(self, clearance_level: int, required_level: int) -> bool:
-        """Check if the agent has the required permissions."""
-        return clearance_level >= required_level
+        # Relay the message to the EdgeAgent
+        recipient = AgentId(type="edge_agent", key="default")
+        await self.send_message(message, recipient)
+        log_action(self.id, f"Message relayed to {recipient}.")
+        print(f"{self.id}: Message relayed to {recipient}.")
