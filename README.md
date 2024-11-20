@@ -22,9 +22,13 @@ Bit of a moonshot, but worth a try. My entry for the Berkeley [LLM Agents Hackat
 ### To run:
 (Running the code is not recommended yet; still working out the details.) But if you wish to, for the authenticated user the the username is n and the password is p
 But when it's ready :
-1. Have docker installed
-2. build the docker image ```docker build -f Dockerfile -t autogen_base_img .```
-3. Run the dockerfile ```docker run -it -v [path_to_your_directory]:/home/autogen/autogen/myapp autogen_base_img:latest python3 /home/autogen/autogen/myapp/main.py```
+1. Create a .env file, add OPEN_API_KEY for whatever model you wish to use. (Currently using OpenAI but will change this to be generic soon as it shouldn't matter)
+2. In the terminal at the root directory and run ```python security\generate_rsa``` this will generate rsa keys and save them to security/keys
+3. In the root directory run ```python security\generate_secrets.py``` this will generate secret and salt values and log them to the terminal. Add the secret value to the .env as SECRET_KEY and the SALT_VALUE in .env
+4. Have docker installed
+5. build the docker image ```docker build -f Dockerfile -t autogen_base_img .```
+6. Run the dockerfile ```docker run -it -v [path_to_your_directory]:/home/autogen/autogen/myapp autogen_base_img:latest python3 /home/autogen/autogen/myapp/main.py```
+7. Log in as the user, current username is n, password is p. Issue your command and specify a clearance level
 
 ### Known loopholes:
 Presently, this implementation assumes that you control the api endpoints for the LLM or trust sharing data with it. It should do a better job protecting the spaces in between those endpoints. But ultimately, all data must be passed unwrapped and exposed to the LLM for the model to properly tokenize and process it. 
