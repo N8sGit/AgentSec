@@ -1,9 +1,8 @@
-# agents/auditor_agent.py
+import logging
 from agents.agent_base import AgentSecBaseAgent
-from autogen_core.base import MessageContext
-from security.encryption_tools import decrypt_data, encrypt_data
-from security.permissions import get_clearance_level
-from security.blockchain import log_action
+from autogen_core.base import MessageContext, AgentId
+from security.signature_tools import verify_signature
+from security.log_chain import log_action
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
@@ -12,31 +11,42 @@ class AuditorAgent(AgentSecBaseAgent):
         super().__init__('auditor_agent')
 
     async def on_message(self, message, ctx: MessageContext):
-        """Handle incoming messages from CoreAgent."""
-        # Decrypt the message from CoreAgent
-        decrypted_command = decrypt_data(message, self.id)
-        if decrypted_command is None:
-            print("AuditorAgent could not decrypt the command.")
+        """Handle incoming structured messages."""
+        # Log raw input
+        log_action(self.id, f"Raw message received: {message}")
+        print(f"{self.id}: Raw message received: {message}")
+        print(f"{self.id}: Context received: {ctx}")
+
+        # Check if the message is a dictionary
+        if not isinstance(message, dict):
+            log_action(self.id, f"Invalid message type: {type(message)}. Expected dictionary.")
+            print(f"{self.id}: Invalid message type: {type(message)}. Expected dictionary.")
             return
 
-        # Verify permissions
-        if not self.has_permission(required_level=2):
-            print("Unauthorized command from CoreAgent.")
+        # Log message keys
+        log_action(self.id, f"Message keys: {list(message.keys())}")
+        print(f"{self.id}: Message keys: {list(message.keys())}")
+
+        # Validate required keys
+        required_keys = {"message", "timestamp", "signature", "clearance_lvl", "sender"}
+        missing_keys = required_keys - message.keys()
+        if missing_keys:
+            log_action(self.id, f"Missing keys: {missing_keys}")
+            print(f"{self.id}: Missing keys: {missing_keys}")
             return
 
-        # Re-encrypt command for EdgeAgent
-        edge_clearance_level = get_clearance_level('edge_agent_one')
-        re_encrypted_command = encrypt_data(
-            decrypted_command,
-            edge_clearance_level,
-            'edge_agent_one'
-        )
+        # Verify the signature
+        if not verify_signature(message):
+            log_action(self.id, "Signature verification failed.")
+            print(f"{self.id}: Signature verification failed.")
+            return
 
-        # Log the action
-        log_action(self.id, 'Relayed command to EdgeAgent.')
+        # Log successful validation
+        log_action(self.id, f"Message verified: {message}")
+        print(f"{self.id}: Message verified: {message}")
 
-        # Send the command to EdgeAgent
-        await self.send_message(
-            message=re_encrypted_command,
-            recipient='edge_agent_one'
-        )
+        # Relay the message to the EdgeAgent
+        recipient = AgentId(type="edge_agent", key="default")
+        await self.send_message(message, recipient)
+        log_action(self.id, f"Message relayed to {recipient}.")
+        print(f"{self.id}: Message relayed to {recipient}.")
