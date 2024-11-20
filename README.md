@@ -22,7 +22,7 @@ Bit of a moonshot, but worth a try. My entry for the Berkeley [LLM Agents Hackat
 ### To run:
 (Running the code is not recommended yet; still working out the details.) But if you wish to, for the authenticated user the the username is n and the password is p
 But when it's ready :
-1. Create a .env file, add OPEN_API_KEY for whatever model you wish to use. (Currently using OpenAI but will change this to be generic soon as it shouldn't matter)
+1. Create a .env file, add OPENAI_API_KEY for whatever model you wish to use. (Currently using OpenAI but will change this to be generic soon as it shouldn't matter)
 2. In the terminal at the root directory and run ```python security\generate_rsa``` this will generate rsa keys and save them to security/keys
 3. In the root directory run ```python security\generate_secrets.py``` this will generate secret and salt values and log them to the terminal. Add the secret value to the .env as SECRET_KEY and the SALT_VALUE in .env
 4. Have docker installed
