@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-salt_value = os.get('SALT_VALUE')
+salt_value = os.getenv('SALT_VALUE')
 
 def generate_key(clearance_level: int, agent_name: str) -> bytes:
     """Generate a secure key based on clearance level and agent name."""
