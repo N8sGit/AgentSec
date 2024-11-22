@@ -5,6 +5,7 @@ class InstructionMessage(BaseModel):
     content: str
     sender: str
     token: str
+    signature: str = Field(..., description="Digital signature for message authentication")
 
 class DataMessage(BaseModel):
     content: str
