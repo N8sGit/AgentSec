@@ -5,17 +5,18 @@ from agents.core_agent import CoreAgent
 from agents.auditor_agent import AuditorAgent
 from agents.edge_agents.edge_agent_one import EdgeAgent
 from security.authenticate_user import authenticate_user, generate_token
-from messages.messages import InstructionMessage
+from messages.messages import UserMessage
+
 
 async def main():
-    # Authenticate the user and retrieve clearance level
+    # Authenticate the user
     clearance_level = authenticate_user()
     if clearance_level is None:
         print("Exiting due to failed authentication.")
         return
 
-    # Generate a token with the authenticated clearance level
-    user_id = "nathan"
+    # Generate a token for the authenticated user
+    user_id = "n"
     user_token = generate_token(clearance_level)
 
     # Initialize the runtime
@@ -57,22 +58,10 @@ async def main():
     # Use asynchronous input to prevent blocking the event loop
     user_command = await asyncio.to_thread(input, "Enter your command: ")
 
-    # Prompt the user to specify the clearance level for the message
-    while True:
-        try:
-            designated_clearance_level = int(await asyncio.to_thread(input, "Enter the clearance level for this command (1-3): "))
-            if 1 <= designated_clearance_level <= clearance_level:
-                break
-            else:
-                print(f"Invalid clearance level. Please specify a level between 1 and your maximum clearance ({clearance_level}).")
-        except ValueError:
-            print("Please enter a valid number.")
-
-    # Wrap the user command in the appropriate message type, including the token and clearance level
-    message = InstructionMessage(
-        content=user_command,
+    # Wrap the user command in the appropriate message type
+    message = UserMessage(
+        message=user_command,
         sender=user_id,
-        clearance_lvl=designated_clearance_level,
         token=user_token
     )
 
@@ -84,6 +73,7 @@ async def main():
 
     # Stop the runtime after processing
     await runtime.stop()
+
 
 if __name__ == '__main__':
     asyncio.run(main())
