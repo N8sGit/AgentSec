@@ -8,10 +8,11 @@ class UserMessage(BaseModel):
 
 class InstructionMessage(BaseModel):
     message: str
+    timestamp: int
     sender: str
     token: str
     signature: str = Field(..., description="Digital signature for message authentication")
-
+    
 class DataMessage(BaseModel):
     message: str
     timestamp: int
