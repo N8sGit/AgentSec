@@ -1,42 +1,20 @@
-# agents/agent_base.py
-from abc import ABC, abstractmethod
-from autogen_core.base import BaseAgent, MessageContext
-from security.permissions import get_clearance_level
+from autogen_core.base import MessageContext
+from autogen_core.components import RoutedAgent
+from security.log_chain import log_action
+from messages.messages import DataMessage
 
-class AgentSecBaseAgent(BaseAgent, ABC):
-    """Base class for agents with security features."""
 
-    def __init__(self, description: str, agent_id: str):
+class AgentSecBaseAgent(RoutedAgent):
+    """Base class for agents with routing and security features."""
+
+    def __init__(self, description: str):
         """
         Initialize the AgentSecBaseAgent.
 
         Args:
             description (str): A description of the agent's purpose.
-            agent_id (str): A unique identifier for the agent.
         """
-        super().__init__(description=description)  # Pass description to BaseAgent
-        self.agent_id = agent_id  # Store agent_id locally for agent-specific logic
-        self.clearance_level = self.get_clearance_level()  # Retrieve the clearance level for this agent
-
-    @abstractmethod
-    async def on_message(self, message, ctx: MessageContext):
-        """
-        Handle incoming messages. Must be implemented by subclasses.
-        
-        Args:
-            message: The message received by the agent.
-            ctx (MessageContext): The context of the message.
-        """
-        pass
-
-    def get_clearance_level(self) -> int:
-        """
-        Retrieve the agent's clearance level.
-        
-        Returns:
-            int: The clearance level of the agent.
-        """
-        return get_clearance_level(self.agent_id)
+        super().__init__(description)
 
     def has_permission(self, required_level: int) -> bool:
         """
@@ -48,4 +26,16 @@ class AgentSecBaseAgent(BaseAgent, ABC):
         Returns:
             bool: True if the agent has sufficient clearance, False otherwise.
         """
-        return self.clearance_level >= required_level
+        # Clearance level logic is removed unless strictly required for data.
+        raise NotImplementedError("Clearance level checks are no longer implemented.")
+
+    async def on_unhandled_message(self, message: DataMessage, ctx: MessageContext) -> None:
+        """
+        Handle unhandled messages.
+
+        Args:
+            message: The message received by the agent.
+            ctx (MessageContext): The context of the message.
+        """
+        log_action(self.agent_id, f"Unhandled message: {message}")
+        print(f"Unhandled message received by {self.agent_id}: {message}")
