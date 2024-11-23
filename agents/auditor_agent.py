@@ -1,52 +1,79 @@
 import logging
 from agents.agent_base import AgentSecBaseAgent
+from autogen_core.components import rpc, event
 from autogen_core.base import MessageContext, AgentId
 from security.signature_tools import verify_signature
 from security.log_chain import log_action
+from messages.messages import InstructionMessage, DataMessage
+
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
 
-    def __init__(self):
-        super().__init__('auditor_agent')
+    def __init__(self, agent_id: str, description: str = "Responsible for auditing and relaying commands."):
+        """
+        Initialize the AuditorAgent with an agent ID and description.
 
-    async def on_message(self, message, ctx: MessageContext):
-        """Handle incoming structured messages."""
-        # Log raw input
-        log_action(self.id, f"Raw message received: {message}")
-        print(f"{self.id}: Raw message received: {message}")
-        print(f"{self.id}: Context received: {ctx}")
+        Args:
+            agent_id (str): Unique identifier for the agent.
+            description (str): Description of the agent's purpose.
+        """
+        super().__init__(description=description)
+        self.agent_id = agent_id
+        logging.info(f"AuditorAgent initialized with ID: {self.agent_id}")
 
-        # Check if the message is a dictionary
-        if not isinstance(message, dict):
-            log_action(self.id, f"Invalid message type: {type(message)}. Expected dictionary.")
-            print(f"{self.id}: Invalid message type: {type(message)}. Expected dictionary.")
-            return
+    @rpc
+    async def handle_instruction(self, message: InstructionMessage, ctx: MessageContext) -> None:
+        """
+        Handle incoming instructions from CoreAgent.
 
-        # Log message keys
-        log_action(self.id, f"Message keys: {list(message.keys())}")
-        print(f"{self.id}: Message keys: {list(message.keys())}")
+        Args:
+            message (InstructionMessage): The instruction message received.
+            ctx (MessageContext): The context of the message.
+        """
+        log_action(self.agent_id, f"Raw instruction received: {message}")
+        print(f"{self.agent_id}: Raw instruction received: {message}")
 
-        # Validate required keys
-        required_keys = {"message", "timestamp", "signature", "clearance_lvl", "sender"}
-        missing_keys = required_keys - message.keys()
-        if missing_keys:
-            log_action(self.id, f"Missing keys: {missing_keys}")
-            print(f"{self.id}: Missing keys: {missing_keys}")
-            return
-
-        # Verify the signature
+        # Verify the signature of the instruction
         if not verify_signature(message):
-            log_action(self.id, "Signature verification failed.")
-            print(f"{self.id}: Signature verification failed.")
+            log_action(self.agent_id, "Signature verification failed.")
+            print(f"{self.agent_id}: Signature verification failed.")
             return
 
-        # Log successful validation
-        log_action(self.id, f"Message verified: {message}")
-        print(f"{self.id}: Message verified: {message}")
+        # Log successful verification
+        log_action(self.agent_id, f"Instruction verified: {message}")
+        print(f"{self.agent_id}: Instruction verified.")
 
-        # Relay the message to the EdgeAgent
-        recipient = AgentId(type="edge_agent", key="default")
+        # Relay the instruction to the appropriate EdgeAgent
+        recipient = AgentId(type="edge_agent_one", key="default")
         await self.send_message(message, recipient)
-        log_action(self.id, f"Message relayed to {recipient}.")
-        print(f"{self.id}: Message relayed to {recipient}.")
+        log_action(self.agent_id, f"Instruction relayed to {recipient}.")
+        print(f"{self.agent_id}: Instruction relayed to {recipient}.")
+
+    @event
+    async def handle_data(self, message: DataMessage, ctx: MessageContext) -> None:
+        """
+        Handle incoming data from Edge Agents.
+
+        Args:
+            message (DataMessage): The data message received.
+            ctx (MessageContext): The context of the message.
+        """
+        log_action(self.agent_id, f"Raw data received: {message}")
+        print(f"{self.agent_id}: Raw data received: {message}")
+
+        # Validate data format
+        if not message:
+            log_action(self.agent_id, "Invalid data format received.")
+            print(f"{self.agent_id}: Invalid data format.")
+            return
+
+        # Log data verification
+        log_action(self.agent_id, f"Data verified: {message}")
+        print(f"{self.agent_id}: Data verified.")
+
+        # Relay the data upward (e.g., CoreAgent)
+        upward_recipient = AgentId(type="core_agent", key="default")
+        await self.send_message(message, upward_recipient)
+        log_action(self.agent_id, f"Data relayed to {upward_recipient}.")
+        print(f"{self.agent_id}: Data relayed to {upward_recipient}.")
