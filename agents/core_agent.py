@@ -6,7 +6,7 @@ from security.signature_tools import sign_message
 from data.db_manager import read_all_data, write_data
 from security.encryption_tools import decrypt_data
 from security.log_chain import log_action
-from messages.messages import DataMessage, UserMessage, InstructionMessage
+from messages.messages import DataMessage, UserMessage
 
 class CoreAgent(AgentSecBaseAgent):
     """Core Agent responsible for processing user commands and routing data."""
