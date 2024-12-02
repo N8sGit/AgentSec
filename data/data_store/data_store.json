@@ -1,0 +1,58 @@
+[
+    {
+        "id": "9e9c2ec0-38c4-407d-b098-1dc3cc881e17",
+        "content": "Public information, no clearance needed.",
+        "clearance_level": 0,
+        "timestamp": "2024-11-26T15:50:11.334939",
+        "owner": null
+    },
+    {
+        "id": "9e9c2ec0-38c4-407d-b098-1dc3cc881e17",
+        "content": "Public information, no clearance needed.",
+        "clearance_level": 0,
+        "timestamp": "2024-11-26T15:50:11.334939",
+        "owner": null
+    },
+    {
+        "id": "07b279eb-1504-4070-a704-162a4888ea28",
+        "content": "Z0FBQUFBQm5SalNEb2Y1NnBLWTZqQjhVVkM3RWhlcWJVdHNpZUVINWNYTGFrYnZ3OGdQSzJRV0dFYTk0SGhpTTktbllTMkRwWElObnFKdGxhMVpEaWJUOU1OY0hzZDlYYXhmRm1OellBdjNSc3FhQmZiblhzZVFWYzJUdXN5Ti13QW1yYjM5UkYzVTc=",
+        "clearance_level": 1,
+        "timestamp": "2024-11-26T15:50:11.334953",
+        "owner": "edge_agent"
+    },
+    {
+        "id": "07b279eb-1504-4070-a704-162a4888ea28",
+        "content": "Z0FBQUFBQm5SalNEb2Y1NnBLWTZqQjhVVkM3RWhlcWJVdHNpZUVINWNYTGFrYnZ3OGdQSzJRV0dFYTk0SGhpTTktbllTMkRwWElObnFKdGxhMVpEaWJUOU1OY0hzZDlYYXhmRm1OellBdjNSc3FhQmZiblhzZVFWYzJUdXN5Ti13QW1yYjM5UkYzVTc=",
+        "clearance_level": 1,
+        "timestamp": "2024-11-26T15:50:11.334953",
+        "owner": "edge_agent"
+    },
+    {
+        "id": "c72569a8-b0ab-44b4-8637-2d60f9bf8d34",
+        "content": "Z0FBQUFBQm5SalNEQjh0cmZkUnRpd2gxZjB1bW00TUp3Yzd4X19oVWRJRlg5WFJLYUs1NHlkSFM5cEFzaElYSUVtU2I4RDVJZjdUZlNlUmRVMXJDVWg5QUdFMGJDNVp0ekZZQng5Y19zSEs4RWZzQUM4aWZmbEk9",
+        "clearance_level": 2,
+        "timestamp": "2024-11-26T15:50:11.334956",
+        "owner": "auditor_agent"
+    },
+    {
+        "id": "c72569a8-b0ab-44b4-8637-2d60f9bf8d34",
+        "content": "Z0FBQUFBQm5SalNEQjh0cmZkUnRpd2gxZjB1bW00TUp3Yzd4X19oVWRJRlg5WFJLYUs1NHlkSFM5cEFzaElYSUVtU2I4RDVJZjdUZlNlUmRVMXJDVWg5QUdFMGJDNVp0ekZZQng5Y19zSEs4RWZzQUM4aWZmbEk9",
+        "clearance_level": 2,
+        "timestamp": "2024-11-26T15:50:11.334956",
+        "owner": "auditor_agent"
+    },
+    {
+        "id": "2f04227e-519e-4166-ba65-06165bc4dc9a",
+        "content": "Z0FBQUFBQm5SalNEQWZEZHlFUkdtYnd6M2xsQks5MjdiY1Jpb2MteFE0NE5sSThlRF9PT2Rtcy1jRDhSQmowV093aUxNWEMxNU5NQmhHNFVqNlRKQzdmQjVoNkhYWllGNlU4UkFIT0cxSE1jcktDOGhEVzloVlpaNExGX3dwTjBiejFwN20xOU5xSzY=",
+        "clearance_level": 3,
+        "timestamp": "2024-11-26T15:50:11.334962",
+        "owner": "core_agent"
+    },
+    {
+        "id": "2f04227e-519e-4166-ba65-06165bc4dc9a",
+        "content": "Z0FBQUFBQm5SalNEQWZEZHlFUkdtYnd6M2xsQks5MjdiY1Jpb2MteFE0NE5sSThlRF9PT2Rtcy1jRDhSQmowV093aUxNWEMxNU5NQmhHNFVqNlRKQzdmQjVoNkhYWllGNlU4UkFIT0cxSE1jcktDOGhEVzloVlpaNExGX3dwTjBiejFwN20xOU5xSzY=",
+        "clearance_level": 3,
+        "timestamp": "2024-11-26T15:50:11.334962",
+        "owner": "core_agent"
+    }
+]
