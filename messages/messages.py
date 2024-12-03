@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
-class UserMessage(BaseModel):
+class AuthUserMessage(BaseModel):
     message: str
     sender: str
     token: str

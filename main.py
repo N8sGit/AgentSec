@@ -5,7 +5,8 @@ from agents.core_agent import CoreAgent
 from agents.auditor_agent import AuditorAgent
 from agents.edge_agents.edge_agent_one import EdgeAgent
 from security.authenticate_user import authenticate_user, generate_token
-from messages.messages import UserMessage
+from messages.messages import AuthUserMessage
+from autogen_ext.models import OpenAIChatCompletionClient
 
 
 async def main():
@@ -27,29 +28,37 @@ async def main():
     auditor_agent_id = AgentId("auditor_agent", "default")
     edge_agent_one_id = AgentId("edge_agent_one", "default")
 
+    # Initialize OpenAIChatCompletionClient
+    openai_client = OpenAIChatCompletionClient(
+        model="gpt-4o-mini",
+    )
+
     # Register agents with the runtime
     await CoreAgent.register(
         runtime,
         "core_agent",
         lambda: CoreAgent(
-            agent_id=core_agent_id
-        )
+            agent_id=core_agent_id,
+            model_client=openai_client,
+        ),
     )
 
     await AuditorAgent.register(
         runtime,
         "auditor_agent",
         lambda: AuditorAgent(
-            agent_id=auditor_agent_id
-        )
+            agent_id=auditor_agent_id,
+            model_client=openai_client,
+        ),
     )
 
     await EdgeAgent.register(
         runtime,
         "edge_agent_one",
         lambda: EdgeAgent(
-            agent_id=edge_agent_one_id
-        )
+            model_client=openai_client,
+            agent_id=edge_agent_one_id,
+        ),
     )
 
     # Start the runtime
@@ -59,10 +68,10 @@ async def main():
     user_command = await asyncio.to_thread(input, "Enter your command: ")
 
     # Wrap the user command in the appropriate message type
-    message = UserMessage(
+    message = AuthUserMessage(
         message=user_command,
         sender=user_id,
-        token=user_token
+        token=user_token,
     )
 
     # Send the message to the core agent
