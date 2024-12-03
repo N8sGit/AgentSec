@@ -5,16 +5,18 @@ from security.signature_tools import verify_signature
 from security.log_chain import log_action
 from messages.messages import InstructionMessage, DataMessage
 from data.db_manager import filter_data_by_clearance_level
+from autogen_core.components.models import ChatCompletionClient, SystemMessage
 import time
 
 
 class EdgeAgent(AgentSecBaseAgent):
     """Edge Agent responsible for executing tasks and reporting results."""
 
-    def __init__(self, agent_id: str, description: str = "Executes tasks and reports results"):
+    def __init__(self, agent_id: str, model_client: ChatCompletionClient, description: str = "Executes tasks and reports results"):
         super().__init__(description=description)
         self.agent_id = agent_id
-
+        self._system_messages = [SystemMessage("You are a frontline agent of a secure multi-agent system. Your role is to execute authorized instructions and to relay results up the chain of command.")]
+        self.model_client = model_client
     def load_accessible_data(self):
         """
         Load and log data accessible to the agent based on its clearance level.

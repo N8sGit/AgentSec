@@ -5,15 +5,18 @@ from autogen_core.base import MessageContext, AgentId
 from security.signature_tools import verify_signature
 from security.log_chain import log_action
 from messages.messages import InstructionMessage, DataMessage
+from autogen_core.components.models import ChatCompletionClient, SystemMessage
 from data.db_manager import filter_data_by_clearance_level
 
 
 class AuditorAgent(AgentSecBaseAgent):
     """Auditor Agent responsible for verifying and relaying commands."""
 
-    def __init__(self, agent_id: str, description: str = "Responsible for auditing and relaying commands."):
+    def __init__(self, agent_id: str, model_client: ChatCompletionClient, description: str = "Responsible for auditing and relaying commands."):
         super().__init__(description=description)
+        self._system_messages = [SystemMessage("You are an auditor of a secure multi-agent system. Your task is to review instructions to ensure they contain no sensitive information and to also flag any suspicious activity.")]
         self.agent_id = agent_id
+        self.model_client = model_client
         logging.info(f"AuditorAgent initialized with ID: {self.agent_id}")
 
     def sensitivity_filter(self, message: InstructionMessage) -> InstructionMessage:

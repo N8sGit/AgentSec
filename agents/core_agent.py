@@ -1,4 +1,5 @@
 import logging
+import copy
 from agents.agent_base import AgentSecBaseAgent
 from autogen_core.components import rpc, event
 from autogen_core.base import MessageContext, AgentId
@@ -6,12 +7,14 @@ from security.signature_tools import sign_message
 from data.db_manager import read_all_data, write_data
 from security.encryption_tools import decrypt_data
 from security.log_chain import log_action
-from messages.messages import DataMessage, UserMessage
+from messages.messages import DataMessage, AuthUserMessage, InstructionMessage
+from autogen_core.components.models import ChatCompletionClient, SystemMessage, UserMessage
+import time
 
 class CoreAgent(AgentSecBaseAgent):
     """Core Agent responsible for processing user commands and routing data."""
 
-    def __init__(self, agent_id: str, description: str = "Core Agent managing tasks and authorizations."):
+    def __init__(self, agent_id: str, model_client: ChatCompletionClient, description: str = "Core Agent managing tasks and authorizations."):
         """
         Initialize the CoreAgent with an agent ID and description.
 
@@ -20,7 +23,9 @@ class CoreAgent(AgentSecBaseAgent):
             description (str): Description of the agent's purpose.
         """
         super().__init__(description=description)
+        self._system_messages = [SystemMessage("You are a the highest authorized agent of a secure multi-agent system. Your role is to evaluate all data and formulate data-sanitized instructions to lower clearance agents.")]
         self.agent_id = agent_id
+        self.model_client = model_client
         logging.info(f"CoreAgent initialized with ID: {self.agent_id}")
 
     async def on_start(self):
@@ -55,22 +60,41 @@ class CoreAgent(AgentSecBaseAgent):
             return []
 
     @rpc
-    async def handle_instruction(self, message: UserMessage, ctx: MessageContext) -> None:
+    async def handle_instruction(self, message: AuthUserMessage, ctx: MessageContext) -> None:
         """
         Handle incoming instructions from the authorized end user.
 
         Args:
-            message (UserMessage): The instruction message received.
+            message (AuthUserMessage): The original user instruction message received, with an auth token.
             ctx (MessageContext): The context of the message.
         """
         log_action(self.agent_id, f"Received instruction: {message}")
         print(f"{self.agent_id}: Instruction received: {message}")
 
-        # Sign the instruction (pass as dict to sign_message)
-        signed_instruction = sign_message(message)
+        # Create a UserMessage for the model client
+        user_message = UserMessage(content=message.message, source="user")
+        # Send the message to the model client and await a response
+        response = await self.model_client.create(
+            self._system_messages + [user_message],
+            cancellation_token=ctx.cancellation_token
+        )
+        
+        print(f"{self.agent_id}: Model client responded with: {response.content}")
+
+        # Create a new InstructionMessage with the response content
+        instruction_message = InstructionMessage(
+            message=response.content,
+            sender=str(self.agent_id),
+            timestamp=int(time.time()),
+            token=message.token,
+            signature=''
+        )
+
+        # Sign the new instruction message
+        signed_instruction = sign_message(instruction_message)
 
         # Log the signing event
-        log_action(self.agent_id, f"Instruction signed: {signed_instruction}")
+        log_action(self.agent_id, f"Signed instruction: {signed_instruction}")
         print(f"{self.agent_id}: Instruction signed and logged.")
 
         # Relay the signed instruction to the AuditorAgent
@@ -78,7 +102,7 @@ class CoreAgent(AgentSecBaseAgent):
         await self.send_message(signed_instruction, recipient)
         log_action(self.agent_id, f"Instruction relayed to {recipient}.")
         print(f"{self.agent_id}: Instruction relayed to {recipient}.")
-
+    
     @event
     async def handle_data(self, message: DataMessage, ctx: MessageContext) -> DataMessage:
         """
