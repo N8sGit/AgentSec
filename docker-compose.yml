@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./data/data_store:/data/data_store
+    command: python3 /home/autogen/autogen/myapp/main.py
