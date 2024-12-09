@@ -37,9 +37,11 @@ RUN pip install grpcio grpcio-tools
 
 # Verify Python installation and installed packages
 RUN python3 --version && python3 -m pip show autogen-core
+
+# Set the entry point
+CMD ["python3", "/home/autogen/autogen/myapp/main.py"]
+
 # Comments for running and building the image
 # Build: docker build -f Dockerfile -t autogen_base_img .
 # Run: docker run -it -v /Users/nateanecone/projects/AgentSec:/home/autogen/autogen/myapp autogen_base_img:latest python3 /home/autogen/autogen/myapp/main.py
-# Set the entry point
-
-CMD ["python3", "/home/autogen/autogen/myapp/main.py"]
+# Run the docker compose and build in interactive mode: docker compose build && docker compose run -it app
