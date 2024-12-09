@@ -16,19 +16,6 @@ class AgentSecBaseAgent(RoutedAgent):
         """
         super().__init__(description)
 
-    def has_permission(self, required_level: int) -> bool:
-        """
-        Check if the agent has the required clearance level.
-
-        Args:
-            required_level (int): The clearance level required to perform the action.
-
-        Returns:
-            bool: True if the agent has sufficient clearance, False otherwise.
-        """
-        # Clearance level logic is removed unless strictly required for data.
-        raise NotImplementedError("Clearance level checks are no longer implemented.")
-
     async def on_unhandled_message(self, message: DataMessage, ctx: MessageContext) -> None:
         """
         Handle unhandled messages.
