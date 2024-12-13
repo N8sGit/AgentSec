@@ -19,9 +19,10 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 def authenticate_user():
     """Authenticate the user through the terminal and return their clearance level if authorized."""
-    username = input("Enter your username: ")
-    password = getpass.getpass("Enter your password: ")
-
+    # username = input("Enter your username: ")
+    # password = getpass.getpass("Enter your password: ")
+    username='n'
+    password = 'p'
     user = AUTHORIZED_USERS.get(username)
     if user and hashlib.sha256(password.encode()).hexdigest() == user["password_hash"]:
         print("Authentication successful.")
