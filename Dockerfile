@@ -30,7 +30,8 @@ RUN pip3 install \
     PyJWT \
     rsa \
     autogen-core[openai]==0.4.0.dev7 \
-    autogen-ext==0.4.0.dev7
+    autogen-ext==0.4.0.dev7 \ 
+    flask
 
 # Install GRPC libraries
 RUN pip install grpcio grpcio-tools
