@@ -2,7 +2,7 @@ import rsa
 import hashlib
 import time
 import os
-from messages.messages import InstructionMessage
+from py_models.messages import InstructionMessage
 from utils.serializers import deserialize_message, serialize_message
 
 # Path constants for the keys (note: made explicit for proof of concept)
