@@ -3,11 +3,12 @@ import time
 from typing import List, Dict
 
 from agents.agent_base import AgentSecBaseAgent
-from autogen_core.components import rpc, event, DefaultTopicId
+from autogen_core.components import rpc, event
 from autogen_core.base import MessageContext
 from security.signature_tools import verify_signature
 from security.log_chain import log_action
-from messages.messages import InstructionMessage, DataMessage
+from py_models.messages import InstructionMessage, DataMessage, ExternalMessage
+from autogen_core.components import message_handler
 from autogen_core.components.models import ChatCompletionClient, SystemMessage
 from utils.fetch import DataManager
 
@@ -17,18 +18,20 @@ logger.setLevel(logging.DEBUG)
 class EdgeAgent(AgentSecBaseAgent):
     """
     Edge Agent responsible for executing tasks and reporting results.
-    It verifies instructions, performs authorized tasks, and relays outcomes.
+    It intreacts with external input, takes verified instructions, performs authorized tasks, and relays outcomes.
     """
 
     def __init__(self, 
                 agent_id: str, 
                 model_client: ChatCompletionClient, 
+                auditor_agent_id: str,
                 description: str = "Executes tasks and reports results",
                 agent_name: str = "edge_agent"):
         super().__init__(description=description)
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.model_client = model_client
+        self.auditor_agent_id = auditor_agent_id  # Added AuditorAgent ID reference
 
         # Clearance level for EdgeAgent is 1
         self.clearance_level = 1
@@ -98,7 +101,7 @@ class EdgeAgent(AgentSecBaseAgent):
         logger.debug(f"{self.agent_id}: Performing task: {command}")
 
         # Execute the actual command logic
-        result_message = self._execute_command(command)
+        result_message = await self._execute_command(command)
 
         # Create a DataMessage for the result
         result = DataMessage(
@@ -107,12 +110,12 @@ class EdgeAgent(AgentSecBaseAgent):
             sender=str(self.agent_id),
         )
 
-        # Publish the result to be relayed upward
-        await self.publish_message(result, topic_id=DefaultTopicId())
-        log_action(self.agent_id, f"Task executed: {command}")
-        logger.info(f"{self.agent_id}: Task executed successfully, result published.")
+        # Forward the result to the AuditorAgent
+        response = await self.send_message(result, self.auditor_agent_id)
+        logger.info(f"{self.agent_id}: AuditorAgent response: {response}")
+        log_action(self.agent_id, f"Task executed and forwarded: {command}")
 
-    def _execute_command(self, command: str) -> str:
+    async def _execute_command(self, command: str) -> str:
         """
         Execute the provided command. Currently a stub that simply formats a result message.
 
@@ -123,8 +126,14 @@ class EdgeAgent(AgentSecBaseAgent):
             str: A result message describing the outcome of the task.
         """
         logger.debug(f"{self.agent_id}: Executing command logic for: {command}")
-        # Stubbed execution logic
-        return f"Result of task '{command}' completed by {self.agent_id}"
+        # Create a user message using SystemMessage
+        command_prompt = f"Execute the following command. Describe and present your results. COMMAND: {command}"
+        external_message = SystemMessage(content=command_prompt)
+        # Combine system and user messages
+        messages = self._system_messages + [external_message]   
+        response = await self.model_client.create(messages)
+        # TO-DO: present this response to the end user.
+        return f"Result of task '{command}' Response: {response}. Completed by {self.agent_id}"
 
     def _verify_instruction_signature(self, message: InstructionMessage) -> bool:
         """
@@ -149,10 +158,23 @@ class EdgeAgent(AgentSecBaseAgent):
     async def handle_data(self, message: DataMessage, ctx: MessageContext) -> None:
         """
         Handle incoming data from other sources.
+        """
+        if isinstance(message, DataMessage):
+            log_action(self.agent_id, f"Data received: {message}")
+            logger.info(f"{self.agent_id}: Data received from {message.sender}: {message.message}")
+        else:
+            logger.error(f"{self.agent_id}: Unexpected message type: {type(message)}")
+    
+    @message_handler
+    async def handle_external_message(self, message: ExternalMessage, ctx: MessageContext) -> None:
+        """
+        Handle messages from external sources.
 
         Args:
-            message (DataMessage): The data message received.
+            message (ExternalMessage): The external message.
             ctx (MessageContext): The context of the message.
         """
-        log_action(self.agent_id, f"Data received: {message}")
-        logger.info(f"{self.agent_id}: Data received from {message.sender}: {message.message}")
+        logger.info(f"EdgeAgent received external message: {message.content}")
+        # Process the message or pass it on to the next agent (AuditorAgent)
+        await self.send_message(message, self.auditor_agent_id)
+        return None
