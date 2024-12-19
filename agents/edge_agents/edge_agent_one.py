@@ -11,6 +11,8 @@ from py_models.messages import InstructionMessage, DataMessage, ExternalMessage
 from autogen_core.components import message_handler
 from autogen_core.components.models import ChatCompletionClient, SystemMessage
 from utils.fetch import DataManager
+import queue
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -21,25 +23,26 @@ class EdgeAgent(AgentSecBaseAgent):
     It intreacts with external input, takes verified instructions, performs authorized tasks, and relays outcomes.
     """
 
+    """
+    Edge Agent responsible for executing tasks and reporting results.
+    It interacts with external input, takes verified instructions, performs authorized tasks, and relays outcomes.
+    """
+
     def __init__(self, 
                 agent_id: str, 
                 model_client: ChatCompletionClient, 
                 auditor_agent_id: str,
+                outgoing_queue: queue.Queue,
                 description: str = "Executes tasks and reports results",
                 agent_name: str = "edge_agent"):
         super().__init__(description=description)
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.model_client = model_client
-        self.auditor_agent_id = auditor_agent_id  # Added AuditorAgent ID reference
-
-        # Clearance level for EdgeAgent is 1
+        self.auditor_agent_id = auditor_agent_id
+        self.outgoing_queue = outgoing_queue
         self.clearance_level = 1
-
-        # Initialize the DataManager
         self.data_manager = DataManager(agent_id=self.agent_id, agent_name=self.agent_name)
-
-        # Define system messages for potential model interactions
         self._system_messages = [
             SystemMessage(
                 "You are a frontline agent of a secure multi-agent system. "
@@ -115,25 +118,42 @@ class EdgeAgent(AgentSecBaseAgent):
         logger.info(f"{self.agent_id}: AuditorAgent response: {response}")
         log_action(self.agent_id, f"Task executed and forwarded: {command}")
 
+    
     async def _execute_command(self, command: str) -> str:
         """
-        Execute the provided command. Currently a stub that simply formats a result message.
+        Execute the provided command and forward the result to the outgoing queue.
 
         Args:
             command (str): The instruction/command to execute.
 
         Returns:
-            str: A result message describing the outcome of the task.
+            str: The result of the command execution.
         """
         logger.debug(f"{self.agent_id}: Executing command logic for: {command}")
-        # Create a user message using SystemMessage
+
+        # Generate the command prompt
         command_prompt = f"Execute the following command. Describe and present your results. COMMAND: {command}"
         external_message = SystemMessage(content=command_prompt)
-        # Combine system and user messages
-        messages = self._system_messages + [external_message]   
+        messages = self._system_messages + [external_message]
+
+        # Get the response from the model client
         response = await self.model_client.create(messages)
-        # TO-DO: present this response to the end user.
-        return f"Result of task '{command}' Response: {response}. Completed by {self.agent_id}"
+
+        # Check if response is valid
+        if not response or not hasattr(response, 'content') or not response.content:
+            logger.error(f"{self.agent_id}: Model client returned invalid response: {response}")
+            return "Error: Command execution failed."
+
+        result_message = f"Result of task '{command}': {response.content}. Completed by {self.agent_id}"
+
+        # Log and send the result
+        logger.info(f"{self.agent_id}: Command result: {result_message}")
+        log_action(self.agent_id, f"Command result: {result_message}")
+
+        # Place the result in the outgoing queue for the Flask app to access
+        self.outgoing_queue.put(result_message)
+
+        return result_message
 
     def _verify_instruction_signature(self, message: InstructionMessage) -> bool:
         """

@@ -78,10 +78,17 @@
         }
 
         async function pollResponses() {
-            const res = await fetch('/get_responses');
-            const data = await res.json();
-            for (const resp of data.responses) {
-                appendMessage("Agent: " + resp, 'agent');
+            try {
+                const res = await fetch('/get_responses');
+                const data = await res.json();
+                console.log('Fetched data:', data);
+                if (data.responses) {
+                    for (const resp of data.responses) {
+                        appendMessage("Agent: " + resp, 'agent');
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching responses:", error);
             }
         }
 

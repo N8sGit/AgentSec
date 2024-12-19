@@ -61,6 +61,7 @@ async def main():
             model_client=openai_client,
             agent_id=edge_agent_id,
             auditor_agent_id=auditor_agent_id,
+            outgoing_queue=outgoing_agent_messages
         ),
     )
 
@@ -75,7 +76,7 @@ async def main():
     )
     flask_thread.start()
 
-    # Main loop
+# Main loop
     while True:
         # Handle external environment input
         try:
@@ -89,7 +90,12 @@ async def main():
                 content=external_msg_content,
                 sender="unknown_source",
             )
-            await runtime.send_message(external_message, edge_agent_id)
+            response_message = await runtime.send_message(
+                message=external_message,
+                recipient=edge_agent_id
+            )
+            # Place the response into the outgoing queue for the Flask server
+            outgoing_agent_messages.put(response_message)
 
         await asyncio.sleep(0.1)
 
