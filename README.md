@@ -1,8 +1,8 @@
-# AgentSec (WIP)
+# AgentSec
 An experimental design for a secure multi-agent system that combines both institutional secrecy practices and programmatic security measures.
 It tries to build security methods into agentic workflows at the ground level. 
 
-What's this about? [See the white paper](https://github.com/N8sGit/agent_sec_white_paper). Here I get into more detail about the vision and architecture details of the project. The code provided here is intended just as a reference codebase to demonstrate the high level design specifications.
+What's this about? [See the white paper](https://github.com/N8sGit/agent_sec_white_paper). Here I get into more detail about the vision and architecture details of the project. The code provided here is intended just as a reference codebase to demonstrate the high level design concepts.
 
 ## High level summary:
 I want to see if it's possible to build a multi-agent system like a top-secret organization, that implements multiple layers of security and prevents leaks and provides a framework for handling sensitive data.
