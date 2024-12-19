@@ -1,11 +1,13 @@
 import logging
-
+from typing import Optional
 from agents.agent_base import AgentSecBaseAgent
 from autogen_core.components import rpc, event
 from autogen_core.base import MessageContext, AgentId
 from security.signature_tools import verify_signature
 from security.log_chain import log_action
-from messages.messages import InstructionMessage, DataMessage
+from security.policies import security_policy
+from py_models.messages import InstructionMessage, DataMessage, VerificationResponse, ExternalMessage
+from autogen_core.components import message_handler
 from autogen_core.components.models import ChatCompletionClient, SystemMessage
 
 # Import the DataManager from utils.fetch
@@ -16,26 +18,26 @@ logger.setLevel(logging.DEBUG)
 
 class AuditorAgent(AgentSecBaseAgent):
     """
-    Auditor Agent responsible for verifying and relaying commands.
-    Checks signatures of incoming instructions, applies a sensitivity filter,
-    and forwards them to the appropriate agents. Also validates data
-    feedback from edge agents and passes it upward if appropriate.
+    Auditor Agent responsible for:
+    - Verifying instructions from the CoreAgent against security policies and forwarding them to EdgeAgents.
+    - Inspecting incoming data from EdgeAgents for malicious content and relaying it to the CoreAgent.
     """
 
     def __init__(
         self, 
         agent_id: str, 
         model_client: ChatCompletionClient, 
-        description: str = "Responsible for auditing and relaying commands.",
+        edge_agent_id: str, 
+        core_agent_id: str, 
+        description: str = "Auditor agent for verifying instructions and inspecting data.",
         agent_name: str = "auditor_agent"
     ):
         super().__init__(description=description)
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.model_client = model_client
-
-        # Clearance level for AuditorAgent is 2
-        self.clearance_level = 2
+        self.edge_agent_id = edge_agent_id  # Link to EdgeAgent
+        self.core_agent_id = core_agent_id  # Link to CoreAgent
 
         # Initialize the DataManager
         self.data_manager = DataManager(agent_id=self.agent_id, agent_name=self.agent_name)
@@ -50,139 +52,148 @@ class AuditorAgent(AgentSecBaseAgent):
 
         logger.info(f"AuditorAgent initialized with ID: {self.agent_id}")
 
-    def sensitivity_filter(self, message: InstructionMessage) -> InstructionMessage:
-        """
-        Filter sensitive content from instructions.
-        Currently a stub that does no modification.
-        
-        Args:
-            message (InstructionMessage): The instruction to filter.
-
-        Returns:
-            InstructionMessage: The filtered (or unchanged) instruction.
-        """
-        log_action(self.agent_id, f"Triggered sensitivity filter for instruction: {message.message}")
-        logger.debug(f"{self.agent_id}: Applying sensitivity filter to instruction: {message.message}")
-        # Stub: No modifications made currently
-        return message
-
-    def validate_feedback(self, message: DataMessage) -> bool:
-        """
-        Validate feedback to ensure it contains no unauthorized commands.
-        Currently a stub that always returns True.
-        
-        Args:
-            message (DataMessage): The feedback data to validate.
-
-        Returns:
-            bool: True if valid, False otherwise.
-        """
-        log_action(self.agent_id, f"Triggered feedback validation for data {message.id}")
-        logger.debug(f"{self.agent_id}: Validating feedback data with ID: {message.id}")
-        # Stub: Assume all feedback is valid for now.
-        return True
-
-    def load_data(self, agent_clearance: int = 2):
-        """
-        Load all accessible data based on the agent's clearance level.
-        
-        Args:
-            agent_clearance (int): The clearance level of the auditor. Defaults to 2.
-        
-        Returns:
-            list: A list of data items accessible to this agent.
-        """
-        log_action(self.agent_id, "Loading data based on clearance level.")
-        logger.debug(f"{self.agent_id}: Loading data for clearance level {agent_clearance}")
-
-        # Use the DataManager to fetch and decrypt data up to clearance_level 2
-        accessible_data = self.data_manager.fetch_data_by_clearance_level(agent_clearance)
-        
-        logger.info(f"{self.agent_id}: Accessible data (clearance {agent_clearance}): {accessible_data}")
-        return accessible_data
-
     @rpc
     async def handle_instruction(self, message: InstructionMessage, ctx: MessageContext) -> None:
         """
-        Handle incoming instructions from CoreAgent, verifying signatures,
-        filtering for sensitive content, and relaying to EdgeAgentOne if valid.
+        Handle incoming instructions from the CoreAgent:
+        - Verify signature.
+        - Check against security policy.
+        - Relay to the EdgeAgent if valid.
         
         Args:
-            message (InstructionMessage): The instruction message received.
-            ctx (MessageContext): The message context.
+            message (InstructionMessage): Instruction received from the CoreAgent.
+            ctx (MessageContext): Message context.
         """
-        log_action(self.agent_id, f"Raw instruction received: {message}")
-        logger.info(f"{self.agent_id}: Raw instruction received: {message}")
+        logger.info(f"{self.agent_id}: Instruction received from CoreAgent: {message.message}")
+        log_action(self.agent_id, f"Verifying instruction: {message}")
 
-        if not self._verify_instruction_signature(message):
-            logger.warning(f"{self.agent_id}: Signature verification failed for instruction: {message.id}")
+        # Verify signature of the instruction
+        if not verify_signature(message):
+            logger.warning(f"{self.agent_id}: Signature verification failed for instruction: {message.message}")
+            log_action(self.agent_id, f"Instruction rejected due to invalid signature: {message}")
             return
 
-        # Apply sensitivity filter
-        filtered_message = self.sensitivity_filter(message)
+        # Verify instruction against security policies
+        if not await self.verify_instruction(message):
+            logger.warning(f"{self.agent_id}: Instruction failed security verification: {message.message}")
+            return
 
-        # Relay to EdgeAgentOne
-        await self._relay_instruction(filtered_message, AgentId(type="edge_agent_one", key="default"))
+        logger.info(f"{self.agent_id}: Instruction passed verification and security checks.")
+        log_action(self.agent_id, f"Instruction verified and forwarding: {message}")
+
+        # Relay instruction to the EdgeAgent
+        response = await self.send_message(message, self.edge_agent_id)
+        logger.info(f"{self.agent_id}: Instruction relayed to EdgeAgent. Response: {response}")
 
     @event
-    async def handle_data(self, message: DataMessage, ctx: MessageContext) -> None:
+    async def handle_data(self, message: DataMessage, ctx: MessageContext) -> Optional[DataMessage]:
         """
-        Handle feedback from EdgeAgents, validating it and relaying to the CoreAgent if appropriate.
+        Handle incoming data from the EdgeAgent:
+        - Inspect for malicious content.
+        - Relay to the CoreAgent if valid.
         
         Args:
-            message (DataMessage): The data message received.
-            ctx (MessageContext): The message context.
+            message (DataMessage): Data message received from the EdgeAgent.
+            ctx (MessageContext): Message context.
         """
-        log_action(self.agent_id, f"Raw data received: {message}")
-        logger.info(f"{self.agent_id}: Raw data received: {message}")
+        logger.info(f"{self.agent_id}: Data received from EdgeAgent: {message.message}")
+        log_action(self.agent_id, f"Inspecting data: {message}")
 
-        if not self.validate_feedback(message):
-            logger.warning(f"{self.agent_id}: Feedback rejected for data ID: {message.id}")
-            log_action(self.agent_id, f"Feedback rejected: {message}")
-            return
+        # Inspect data for malicious content
+        if not self.inspect_data(message):
+            logger.warning(f"{self.agent_id}: Malicious content detected in data: {message.message}")
+            return None
 
-        # If feedback is valid, relay to the CoreAgent
-        await self._relay_data(message, AgentId(type="core_agent", key="default"))
+        logger.info(f"{self.agent_id}: Data passed inspection.")
+        log_action(self.agent_id, f"Data verified and forwarding: {message}")
 
-    def _verify_instruction_signature(self, message: InstructionMessage) -> bool:
+        # Relay data to the CoreAgent
+        response = await self.send_message(message, self.core_agent_id)
+        logger.info(f"{self.agent_id}: Data relayed to CoreAgent. Response: {response.content}")
+        return response
+
+    async def verify_instruction(self, message: InstructionMessage) -> VerificationResponse:
+        logger.debug(f"{self.agent_id}: Verifying instruction content: {message.message}")
+
+        # Construct verification context
+        verification_context = {
+            "role": "system",
+            "content": (
+                f"Examine this security policy: {security_policy.security_policy}. "
+                f"Ensure that this instruction complies with all policies: {message.message}. "
+                "If the instruction clears all policies, return: {\"verified\": true, \"message\": \"<instruction as is>\"}. "
+                "Otherwise, return: {\"verified\": false, \"message\": \"<instruction with non-compliant parts replaced with [REDACTED]>\"}."
+            ),
+        }
+
+        try:
+            # Call model client
+            completion = await self.model_client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=[verification_context],
+                response_format=VerificationResponse,
+            )
+
+            # Validate and parse response
+            response = completion.choices[0].message.parsed
+            if not isinstance(response, VerificationResponse):
+                raise ValueError("Invalid response format from model.")
+
+            logger.info(f"{self.agent_id}: Verification result: {response}")
+            return response
+
+        except Exception as e:
+            logger.error(f"{self.agent_id}: Error during verification: {e}")
+            return VerificationResponse(verified=False, message=f"[ERROR]: Verification failed due to: {str(e)}")
+
+    def inspect_data(self, message: DataMessage) -> bool:
         """
-        Verify the signature of an incoming instruction.
-
+        Inspect incoming data for malicious content.
+        
         Args:
-            message (InstructionMessage): The instruction whose signature needs verification.
+            message (DataMessage): The data to inspect.
 
         Returns:
-            bool: True if signature is valid, False otherwise.
+            bool: True if the data is safe, False otherwise.
         """
-        logger.debug(f"{self.agent_id}: Verifying signature for instruction ID: {message.id}")
-        if verify_signature(message):
-            logger.info(f"{self.agent_id}: Signature verification successful for instruction ID: {message.id}")
-            return True
-        else:
-            log_action(self.agent_id, "Signature verification failed.")
-            logger.error(f"{self.agent_id}: Signature verification failed for instruction ID: {message.id}")
-            return False
+        logger.debug(f"{self.agent_id}: Inspecting data: {message.message}")
+        # Placeholder for malicious content detection logic
+        return "malicious" not in message.message.lower()
+    
+    def inspect_external_message(self, message: ExternalMessage) -> bool:
+        """
+        Inspect incoming data for malicious content.
+        
+        Args:
+            message (DataMessage): The data to inspect.
 
-    async def _relay_instruction(self, message: InstructionMessage, recipient: AgentId) -> None:
+        Returns:
+            bool: True if the data is safe, False otherwise.
         """
-        Relay the given instruction message to the specified recipient.
+        logger.debug(f"{self.agent_id}: Inspecting data: {message.content}")
+        # Placeholder for malicious content detection logic
+        return "malicious" not in message.content.lower()
+    
+    @message_handler
+    async def handle_external_message(self, message: ExternalMessage, ctx: MessageContext) -> ExternalMessage:
+        """
+        Inspect and verify the external message for policy compliance.
 
         Args:
-            message (InstructionMessage): The instruction message to relay.
-            recipient (AgentId): The recipient agent ID.
+            message (ExternalMessage): The external message to inspect.
+            ctx (MessageContext): The message context.
+        Returns:
+            ExternalMessage: Forward the verified message to the CoreAgent.
         """
-        await self.send_message(message, recipient)
-        log_action(self.agent_id, f"Instruction relayed to {recipient}.")
-        logger.info(f"{self.agent_id}: Instruction (ID: {message.id}) relayed to {recipient}.")
+        # Log and inspect the incoming message
+        logger.info(f"AuditorAgent inspecting message: {message.content}")
 
-    async def _relay_data(self, message: DataMessage, recipient: AgentId) -> None:
-        """
-        Relay the given data message to the specified recipient.
+        # Simulate a verification process
+        self.inspect_external_message(message=message)
+        
+        # If message is verified, forward it to the CoreAgent
+        logger.info(f"Message passed security checks: {message.content}")
+        await self.send_message(message, self.core_agent_id)
 
-        Args:
-            message (DataMessage): The data message to relay.
-            recipient (AgentId): The recipient agent ID.
-        """
-        await self.send_message(message, recipient)
-        log_action(self.agent_id, f"Data relayed to {recipient}.")
-        logger.info(f"{self.agent_id}: Data (ID: {message.id}) relayed to {recipient}.")
+        # Return the message for logging or further processing
+        return message

@@ -1,7 +1,7 @@
 from autogen_core.base import MessageContext
 from autogen_core.components import RoutedAgent
 from security.log_chain import log_action
-from messages.messages import DataMessage
+from py_models.messages import DataMessage
 
 
 class AgentSecBaseAgent(RoutedAgent):

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AgentSec Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #chat-window {
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 300px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        #message-input {
+            width: 200px;
+        }
+
+        #send-btn {
+            margin-left: 5px;
+        }
+
+        .message {
+            margin: 5px 0;
+        }
+
+        .user {
+            color: blue;
+        }
+
+        .agent {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>AgentSec Edge Chat</h1>
+    <div id="chat-window"></div>
+    <input type="text" id="message-input" placeholder="Type your message..." />
+    <button id="send-btn">Send</button>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function appendMessage(text, className) {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.textContent = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function sendMessage() {
+            const msg = messageInput.value.trim();
+            if (msg) {
+                appendMessage("You: " + msg, 'user');
+                fetch('/send_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                messageInput.value = '';
+            }
+        }
+
+        async function pollResponses() {
+            const res = await fetch('/get_responses');
+            const data = await res.json();
+            for (const resp of data.responses) {
+                appendMessage("Agent: " + resp, 'agent');
+            }
+        }
+
+        setInterval(pollResponses, 2000); // Poll every 2 seconds
+    </script>
+</body>
+
+</html>
