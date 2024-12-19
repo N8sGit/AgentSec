@@ -4,10 +4,14 @@ It tries to build security methods into agentic workflows at the ground level.
 
 What's this about? [See the white paper](https://github.com/N8sGit/agent_sec_white_paper). Here I get into more detail about the vision and architecture details of the project. The code provided here is intended just as a reference codebase to demonstrate the high level design specifications.
 
-## tl;dr
+## High level summary:
 I want to see if it's possible to build a multi-agent system like a top-secret organization, that implements multiple layers of security and prevents leaks and provides a framework for handling sensitive data.
 
-For example: certain information points could be labeled "classified", and encrypted, and only read by agents with appropriate clearance levels. 
+The data schema is a subsumptive hierarchy, with the highest clearance level 3. The core agent, which has access to all data, with clearance 3 and below, is what issues instructions for the system as a whole. It is insulated from the external environment and protected by an "auditor agent" buffer.
+
+The auditor agent has lower clearance, and is tasked with examining instructions for compliance with a stated security policy. It will edit and censor any instructions or data that does not comply. 
+
+Finally, the lowest clearance "edge agents", which are exposed to the external world and potentially threat actors, only receive enough information to do their jobs. If compromised, they are isolated and unable to leak any sensitive data.
 
 Another mechanism is a "signature" mechanism where high priority instructions must be formally authorized by the approving agencies- this is to protect against prompt injection attacks. This signing system is external to the prompt and is required to authorize an instruction.
 
@@ -17,7 +21,7 @@ If my theory is correct, you should be able to trust this infrastructure with an
 
 The provided codebase is meant as a point of reference, if the ideas prove useful, anyone could build them into their multi-agent system as appropriate. 
 
-Bit of a moonshot, but worth a try. My entry for the Berkeley [LLM Agents Hackathon](https://rdi.berkeley.edu/llm-agents-hackathon/)
+My entry for the Berkeley [LLM Agents Hackathon](https://rdi.berkeley.edu/llm-agents-hackathon/)
 
 ### To run:
 But when it's ready :
@@ -31,7 +35,7 @@ But when it's ready :
 8. Navigate to localhost:8000 in the browser of your choice. This chat window is meant to be the interface for red teaming. Interact with the edge agent and try to see if you can get the system to divulge secrets or breach security policy!
 
 
-### Note: I am not a cybersec specialist by trade. The way various authentication measures are handled in this project are for demo purpose only. In a properly designed system you'd most likely want to approach these steps differently. 
+### Note: I am not a cybersec specialist by trade. The way various authentication measures are handled in this project are for demo purpose only. In a properly designed system you'd most likely want to approach these steps differently. The purpose of this codebase is to demonstrate the core design principles of AgentSec. Everything else is an expedience. 
 
 ### Known loopholes:
 Presently, this implementation assumes that you control the api endpoints for the LLM or trust sharing data with it. It should do a better job protecting the spaces in between those endpoints. But ultimately, all data must be passed unwrapped and exposed to the LLM for the model to properly tokenize and process it. 
