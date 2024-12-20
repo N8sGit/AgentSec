@@ -24,7 +24,6 @@ The provided codebase is meant as a point of reference, if the ideas prove usefu
 My entry for the Berkeley [LLM Agents Hackathon](https://rdi.berkeley.edu/llm-agents-hackathon/)
 
 ### To run:
-But when it's ready :
 1. Create a .env file, add OPENAI_API_KEY.
 2. In the terminal at the root directory and run ```python security\generate_rsa``` this will generate rsa keys and save them to security/keys
 3. In the root directory run ```python security\generate_secrets.py``` this will generate secret and salt values and log them to the terminal. Add the secret value to the .env as SECRET_KEY and the SALT_VALUE in .env
